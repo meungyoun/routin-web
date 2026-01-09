@@ -25,6 +25,9 @@ const getGodsaengDate = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+// ⭐ 반응 이모지 리스트 (친구들 응원용)
+const REACTION_EMOJIS = ["🔥", "💯", "🥰", "💪", "👀"];
+
 export default function Home() {
   // 사용자 정보
   const [myName, setMyName] = useState(""); 
@@ -54,16 +57,15 @@ export default function Home() {
     return () => unsubscribe();
   }, [todayDate]);
 
-  // 2. 유저 정보(프사 등) 실시간 감시 (새로운 기능! ⭐)
+  // 2. 유저 정보(프사 등) 실시간 감시
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
       const info: any = {};
       snapshot.docs.forEach(doc => {
-        info[doc.id] = doc.data(); // { "승연": { avatar: "🐰", ... }, ... }
+        info[doc.id] = doc.data(); 
       });
       setUsersInfo(info);
       
-      // 내 정보가 업데이트되면 바로 반영
       if (myName && info[myName]) {
         setMyAvatar(info[myName].avatar || "😎");
       }
@@ -113,7 +115,8 @@ export default function Home() {
       task: todo,
       isDone: false,
       date: todayDate,
-      createdAt: new Date() 
+      createdAt: new Date(),
+      reactions: {} // ⭐ 반응 기능 추가를 위해 초기화
     });
     setTodo(""); 
   };
@@ -124,6 +127,26 @@ export default function Home() {
   
   const deletePlan = async (id: string) => {
     if (confirm("계획을 삭제합니다.")) await deleteDoc(doc(db, "plans", id));
+  };
+
+  // ⭐ 이모지 반응 토글 함수 (추가됨)
+  const toggleReaction = async (planId: string, emoji: string) => {
+    const plan = todos.find(t => t.id === planId);
+    if (!plan) return;
+
+    const currentReactions = plan.reactions || {};
+    const usersWhoReacted = currentReactions[emoji] || [];
+
+    let newUsersList;
+    if (usersWhoReacted.includes(myName)) {
+      newUsersList = usersWhoReacted.filter((user: string) => user !== myName);
+    } else {
+      newUsersList = [...usersWhoReacted, myName];
+    }
+
+    await updateDoc(doc(db, "plans", planId), {
+      [`reactions.${emoji}`]: newUsersList 
+    });
   };
 
   // --- 마이페이지 기능들 ---
@@ -199,13 +222,37 @@ export default function Home() {
                 {Math.round((todos.filter(t => t.name === user && t.isDone).length / (todos.filter(t => t.name === user).length || 1)) * 100)}%
               </span>
             </h2>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {todos.filter(t => t.name === user).map((plan) => (
-                <li key={plan.id} className="flex items-center gap-2 bg-gray-700/50 p-2 rounded hover:bg-gray-700 transition">
-                  <input type="checkbox" checked={plan.isDone} disabled={user !== myName} onChange={() => toggleDone(plan.id, plan.isDone)} className={`w-5 h-5 accent-green-500 ${user !== myName ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}/>
-                  <span className={`text-sm font-mono text-gray-400`}>{plan.time}</span>
-                  <span className={`flex-1 ${plan.isDone ? 'text-gray-500 line-through' : 'text-white'}`}>{plan.task}</span>
-                  {user === myName && (<button onClick={() => deletePlan(plan.id)} className="text-red-400 hover:text-red-300 px-2">×</button>)}
+                <li key={plan.id} className="bg-gray-700/50 p-3 rounded hover:bg-gray-700 transition">
+                  {/* 상단: 체크박스 및 할 일 */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <input type="checkbox" checked={plan.isDone} disabled={user !== myName} onChange={() => toggleDone(plan.id, plan.isDone)} className={`w-5 h-5 accent-green-500 ${user !== myName ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}/>
+                    <span className={`text-sm font-mono text-gray-400`}>{plan.time}</span>
+                    <span className={`flex-1 ${plan.isDone ? 'text-gray-500 line-through' : 'text-white'}`}>{plan.task}</span>
+                    {user === myName && (<button onClick={() => deletePlan(plan.id)} className="text-red-400 hover:text-red-300 px-2">×</button>)}
+                  </div>
+
+                  {/* ⭐ 하단: 이모지 버튼들 (여기도 디자인 깔끔하게 추가!) ⭐ */}
+                  <div className="flex gap-2 justify-end">
+                    {REACTION_EMOJIS.map(emoji => {
+                      const count = plan.reactions?.[emoji]?.length || 0;
+                      const isReacted = plan.reactions?.[emoji]?.includes(myName);
+                      
+                      return (
+                        <button 
+                          key={emoji}
+                          onClick={() => toggleReaction(plan.id, emoji)}
+                          className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 transition
+                            ${isReacted ? 'bg-blue-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}
+                          `}
+                        >
+                          <span>{emoji}</span>
+                          {count > 0 && <span>{count}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </li>
               ))}
             </ul>
