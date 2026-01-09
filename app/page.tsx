@@ -73,7 +73,7 @@ export default function Home() {
 
   // 입장/로그인
   const enterApp = async () => {
-    if (!tempName.trim() || !tempPw.trim()) return alert("입력해주세요.");
+    if (!tempName.trim() || !tempPw.trim()) return alert("빈칸을 채워주세요.");
     try {
       const userRef = doc(db, "users", tempName);
       const userSnap = await getDoc(userRef);
