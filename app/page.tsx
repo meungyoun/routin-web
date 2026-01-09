@@ -153,35 +153,38 @@ export default function Home() {
     await updateDoc(doc(db, "plans", planId), { [`reactions.${emoji}`]: newUsersList });
   };
 
+  // ⭐ 프로필 업데이트 (수정됨: 비밀번호 없으면 아바타만 변경!)
   const updateProfile = async (newAvatar: string, newPw: string) => {
-    if (!newPw.trim()) return alert("비번 필수!");
     try {
-      await updateDoc(doc(db, "users", myName), { avatar: newAvatar, password: newPw });
+      const updateData: any = { avatar: newAvatar };
+      // 비밀번호 칸에 뭐가 적혀있을 때만 비밀번호도 변경 (빈칸이면 패스)
+      if (newPw.trim()) {
+        updateData.password = newPw;
+      }
+      
+      await updateDoc(doc(db, "users", myName), updateData);
       alert("변경 완료!");
       setIsMyPageOpen(false);
     } catch (e) { alert("실패ㅠ"); }
   };
 
-  // ⭐ 시간 변경 핸들러
-  // ⭐ 시간 변경 핸들러 (수정됨: 30분 단위 강제 보정)
+  // ⭐ 시간 변경 핸들러 (다시 깔끔한 시계용 + 30분 보정 기능)
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (!val) return;
     
-    // 입력된 분(Minute) 확인
+    // 입력된 분(Minute) 확인해서 00 또는 30으로 보정
     const [h, m] = val.split(':');
     const minute = parseInt(m);
 
-    // 30분 단위가 아니면, 가까운 쪽으로 강제 변경 (00 또는 30)
-    // 예: 9:12 -> 9:00 / 9:40 -> 9:30
     if (minute !== 0 && minute !== 30) {
       const newMinute = minute < 15 ? "00" : minute < 45 ? "30" : "00";
-      // 45분 이상이라 00으로 갈 때 시간을 올리는 건 복잡하니, 일단 현재 시간의 00분으로 맞춤
       setTime(`${h}:${newMinute}`);
     } else {
       setTime(val);
     }
   };
+
   // 스타일 생성
   const getThemeStyles = () => {
     const base = themeMode === 'dark' 
@@ -239,7 +242,7 @@ export default function Home() {
           <span className="text-2xl">{myAvatar}</span> {myName}
         </span>
         
-        {/* ⭐ 다시 깔끔한 시계 디자인으로 복귀 (30분 단위 step 적용) */}
+        {/* ⭐ 다시 깔끔한 시계 모양 (input type="time" + step="1800") */}
         <input 
           type="time" 
           value={time} 
@@ -355,7 +358,7 @@ export default function Home() {
               <input type="password" placeholder="새 비번" id="newPwInput" className={`w-full p-3 rounded outline-none ${theme.input}`}/>
             </div>
             
-            <button onClick={() => { const newPw = (document.getElementById("newPwInput") as HTMLInputElement).value; updateProfile(myAvatar, newPw || tempPw); }} className={`w-full font-bold py-3 rounded text-lg text-white hover:opacity-90 ${theme.btn}`}>저장하기</button>
+            <button onClick={() => { const newPw = (document.getElementById("newPwInput") as HTMLInputElement).value; updateProfile(myAvatar, newPw || ""); }} className={`w-full font-bold py-3 rounded text-lg text-white hover:opacity-90 ${theme.btn}`}>저장하기</button>
           </div>
         </div>
       )}
